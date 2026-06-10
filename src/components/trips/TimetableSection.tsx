@@ -3,8 +3,12 @@
 import { useState } from 'react'
 import { searchPlaces } from '@/app/actions/naver'
 import { createClient } from '@/utils/supabase/client'
-import { Plus, Search, MapPin, Clock } from 'lucide-react'
+import { Plus, Search, MapPin, Clock, Calendar } from 'lucide-react'
 import { format } from 'date-fns'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 
 interface TimetableSectionProps {
   trip: any
@@ -29,17 +33,6 @@ export default function TimetableSection({ trip, schedules, setSchedules }: Time
   }
 
   const addSchedule = async (place: any) => {
-    // Naver Local API returns coordinates in Katech (TM128) format by default for some legacy reasons,
-    // but the newer Search API might return it differently or need conversion.
-    // Actually, Naver Search Local API returns mapx, mapy which are TM128. 
-    // We might need a conversion or use Map API to search if we want Lat/Lng directly.
-    // FOR PROTOTYPE: We'll assume these are directly usable or use a simple conversion if needed.
-    // (Correct way: use Naver Maps Geocoding or Coordinate conversion)
-    
-    // Simple TM128 to WGS84 (Lat/Lng) conversion logic is complex. 
-    // Ideally we'd use 'naver.maps.Service.fromTM128ToCoord' on the client.
-    
-    // Since we are in the client, we can use naver.maps if it's loaded.
     const naver = (window as any).naver
     let lat = 0, lng = 0
     
@@ -49,7 +42,6 @@ export default function TimetableSection({ trip, schedules, setSchedules }: Time
       lat = latlng.lat()
       lng = latlng.lng()
     } else {
-      // Fallback: This won't be accurate but for the sake of the demo if API isn't ready
       lat = 37.5665
       lng = 126.9780
     }
@@ -59,12 +51,12 @@ export default function TimetableSection({ trip, schedules, setSchedules }: Time
 
     const newSchedule = {
       trip_id: trip.id,
-      place_name: place.title.replace(/<[^>]*>?/gm, ''), // Remove HTML tags
+      place_name: place.title.replace(/<[^>]*>?/gm, ''),
       address: place.address,
       lat,
       lng,
-      start_time: new Date().toISOString(), // Default to now
-      end_time: new Date(Date.now() + 3600000).toISOString(), // +1 hour
+      start_time: new Date().toISOString(),
+      end_time: new Date(Date.now() + 3600000).toISOString(),
       details: {
         category: place.category,
         description: place.description,
@@ -87,83 +79,78 @@ export default function TimetableSection({ trip, schedules, setSchedules }: Time
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <section>
-        <form onSubmit={handleSearch} style={{ display: 'flex', gap: '5px' }}>
-          <input 
+    <div className="flex flex-col gap-6">
+      <section className="space-y-4">
+        <form onSubmit={handleSearch} className="flex gap-2">
+          <Input 
             type="text" 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="장소 검색 (예: 제주 맛집)"
-            style={{ flex: 1, padding: '8px', borderRadius: '5px', border: '1px solid #ddd' }}
+            className="flex-1 bg-secondary/30 border-none focus-visible:ring-primary"
           />
-          <button type="submit" style={{ padding: '8px', cursor: 'pointer', border: 'none', background: '#0070f3', color: '#fff', borderRadius: '5px' }}>
-            <Search size={18} />
-          </button>
+          <Button type="submit" size="icon" disabled={searching}>
+            <Search className="w-4 h-4" />
+          </Button>
         </form>
 
         {searchResults.length > 0 && (
-          <ul style={{ listStyle: 'none', padding: 0, margin: '10px 0', border: '1px solid #ddd', borderRadius: '5px', maxHeight: '200px', overflowY: 'auto' }}>
-            {searchResults.map((place, idx) => (
-              <li 
-                key={idx} 
-                onClick={() => addSchedule(place)}
-                style={{ padding: '10px', borderBottom: idx === searchResults.length - 1 ? 'none' : '1px solid #eee', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-              >
-                <div>
-                  <div style={{ fontWeight: 'bold' }}>{place.title.replace(/<[^>]*>?/gm, '')}</div>
-                  <div style={{ fontSize: '12px', color: '#666' }}>{place.address}</div>
-                </div>
-                <Plus size={16} color="#0070f3" />
-              </li>
-            ))}
-          </ul>
+          <Card className="border-border bg-card/50 overflow-hidden">
+            <ul className="divide-y divide-border max-h-[300px] overflow-y-auto">
+              {searchResults.map((place, idx) => (
+                <li 
+                  key={idx} 
+                  onClick={() => addSchedule(place)}
+                  className="p-3 hover:bg-secondary/50 cursor-pointer flex justify-between items-center transition-colors"
+                >
+                  <div className="space-y-1">
+                    <div className="font-medium text-sm">{place.title.replace(/<[^>]*>?/gm, '')}</div>
+                    <div className="text-xs text-muted-foreground flex items-center gap-1">
+                      <MapPin className="w-3 h-3" /> {place.address}
+                    </div>
+                  </div>
+                  <Plus className="w-4 h-4 text-primary" />
+                </li>
+              ))}
+            </ul>
+          </Card>
         )}
       </section>
 
-      <section>
-        <h3 style={{ fontSize: '1rem', marginBottom: '10px' }}>일정표</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-primary" /> 일정표
+          </h3>
+          <Badge variant="outline" className="text-[10px] uppercase">{schedules.length} Places</Badge>
+        </div>
+        
+        <div className="flex flex-col gap-3">
           {schedules.length > 0 ? (
             schedules.map((schedule, idx) => (
-              <div key={schedule.id} style={{ 
-                padding: '12px', 
-                border: '1px solid #eaeaea', 
-                borderRadius: '8px', 
-                backgroundColor: '#fff',
-                display: 'flex',
-                gap: '12px'
-              }}>
-                <div style={{ 
-                  width: '24px', 
-                  height: '24px', 
-                  borderRadius: '12px', 
-                  backgroundColor: '#0070f3', 
-                  color: '#fff', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  fontSize: '12px',
-                  fontWeight: 'bold',
-                  flexShrink: 0
-                }}>
-                  {idx + 1}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>{schedule.place_name}</div>
-                  <div style={{ fontSize: '12px', color: '#666', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}>
-                    <MapPin size={12} /> {schedule.address}
+              <Card key={schedule.id} className="border-none bg-secondary/20 hover:bg-secondary/30 transition-colors">
+                <CardContent className="p-4 flex gap-4">
+                  <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold shrink-0">
+                    {idx + 1}
                   </div>
-                  <div style={{ fontSize: '12px', color: '#666', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Clock size={12} /> {format(new Date(schedule.start_time), 'HH:mm')} ~ {format(new Date(schedule.end_time), 'HH:mm')}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-sm truncate">{schedule.place_name}</div>
+                    <div className="flex flex-col gap-1 mt-2">
+                      <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+                        <MapPin className="w-3 h-3" /> <span className="truncate">{schedule.address}</span>
+                      </div>
+                      <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+                        <Clock className="w-3 h-3" /> {format(new Date(schedule.start_time), 'HH:mm')} ~ {format(new Date(schedule.end_time), 'HH:mm')}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             ))
           ) : (
-            <p style={{ color: '#999', fontSize: '14px', textAlign: 'center', padding: '20px' }}>
-              아직 일정이 없습니다. 장소를 검색하여 추가해보세요!
-            </p>
+            <div className="text-center py-12 bg-secondary/10 rounded-xl border-2 border-dashed border-border">
+              <p className="text-xs text-muted-foreground">아직 일정이 없습니다.<br/>장소를 검색하여 추가해보세요!</p>
+            </div>
           )}
         </div>
       </section>

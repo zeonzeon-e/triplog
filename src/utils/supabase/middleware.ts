@@ -28,7 +28,13 @@ export async function updateSession(request: NextRequest) {
   )
 
   // refreshing the auth token
-  await supabase.auth.getUser()
+  try {
+    // This will refresh the session if it exists
+    await supabase.auth.getUser()
+  } catch (error) {
+    // If fetch fails (e.g. network issue, invalid URL), we don't want to crash the whole app
+    console.error('Supabase session update failed:', error)
+  }
 
   return supabaseResponse
 }
